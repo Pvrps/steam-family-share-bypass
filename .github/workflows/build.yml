@@ -51,7 +51,13 @@ jobs:
           name: SteamPatcher-Windows-exe
           path: dist
 
-      - name: Create or Update "latest" Release
+      - name: Delete old "latest" release and tag
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create fresh "latest" Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
