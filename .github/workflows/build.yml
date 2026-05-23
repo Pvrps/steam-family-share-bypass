@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SteamPatcher-Windows-exe
-          path: dist/main.exe
+          path: dist/steam_patcher.exe
 
   release:
     needs: build
@@ -59,7 +59,7 @@ jobs:
           body: |
             This is the most recent build of the Steam Patcher.
             It is automatically updated on every push to the `main` branch.
-          files: dist/main.exe
+          files: dist/steam_patcher.exe
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
