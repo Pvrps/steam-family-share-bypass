@@ -25,6 +25,15 @@ PATCH_SUBDIR = "patch"
 PATCH_DLL_NAME = "user32.dll"
 CACHE_CLEANER_EXE_NAME = "DeleteSteamAppCache.exe"
 STEAM_EXE = "steam.exe"
+STEAM_PROCESSES = [
+    "steam.exe",
+    "steamwebhelper.exe",
+    "steamservice.exe",
+    "steamerrorreporter.exe",
+    "steamerrorreporter64.exe",
+    "GameOverlayUI.exe",
+    "GameOverlayRenderer.dll",
+]
 VC_REDIST_EXE_NAME = "VC_redist.x86.exe"
 APP_LIST_DIR_NAME = "AppList"
 AUTHOR = "Purps"
@@ -360,10 +369,47 @@ def get_steam_install_path():
     try: key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam"); steam_path, _ = winreg.QueryValueEx(key, "SteamPath"); winreg.CloseKey(key); return steam_path.replace("/", "\\")
     except: return None
 def kill_steam_process(app: SteamPatcherApp):
-    app.is_steam_running.clear(); return_val = True
-    try: subprocess.run(["taskkill", "/F", "/IM", STEAM_EXE], check=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW); app.log_message("Steam process killed successfully."); time.sleep(1)
-    except subprocess.CalledProcessError: app.log_message("Steam is not running or could not be killed.")
-    return return_val
+    app.is_steam_running.clear()
+    # Kill all known Steam-related processes
+    killed_any = False
+    for proc in STEAM_PROCESSES:
+        try:
+            result = subprocess.run(
+                ["taskkill", "/F", "/IM", proc],
+                capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if result.returncode == 0:
+                killed_any = True
+        except Exception:
+            pass
+    if killed_any:
+        app.log_message("Steam processes killed.")
+    else:
+        app.log_message("No Steam processes were running.")
+    # Wait until user32.dll is no longer locked, up to ~10 seconds
+    steam_dir = app.steam_path
+    dll_path = os.path.join(steam_dir, PATCH_DLL_NAME) if steam_dir else None
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        # Check that no steam processes remain
+        check = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/FO", "CSV", "/NH"],
+            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        if "steam.exe" not in check.stdout.lower():
+            # Also verify dll is not locked if it exists
+            if dll_path and os.path.exists(dll_path):
+                try:
+                    os.rename(dll_path, dll_path)  # no-op rename; fails if file is locked
+                except OSError:
+                    time.sleep(0.5)
+                    continue
+            break
+        time.sleep(0.5)
+    else:
+        app.log_message("Warning: Steam may still be running after timeout.")
+    time.sleep(0.5)
+    return True
 def start_steam_process(app: SteamPatcherApp):
     app.log_message("Starting Steam...")
     if app.steam_path:
