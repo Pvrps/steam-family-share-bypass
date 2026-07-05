@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+.ruff_cache/
+
+# Devenv
+.devenv
+devenv.lock
+
+# IDE
+.vscode/settings.json

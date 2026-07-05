@@ -1,18 +1,31 @@
-# Check if we are inside a nix-shell environment
-in_nix := env_var_or_default("IN_NIX_SHELL", "")
-
-# Default recipe
 default:
-	@just --list
+    @just --list
+
+# Update devenv inputs (nixpkgs, devenv module versions) and sync deps
+update:
+    devenv update
+    uv sync
+
+# Garbage collect old devenv generations
+gc:
+    devenv gc
+
+# Clean devenv cache (forces full rebuild on next shell)
+clean:
+    rm -rf .devenv devenv.lock
+
+# Enter the devenv shell
+shell:
+    devenv shell
+
+# Install/sync dependencies
+install:
+    devenv shell -- uv sync
 
 # Run the application
 run:
-	{{ if in_nix == "" { "nix-shell --run 'uv run python main.py'" } else { "uv run python main.py" } }}
+    devenv shell -- uv run python main.py
 
 # Build the executable
 build:
-	{{ if in_nix == "" { "nix-shell --run 'uv run pyinstaller main.spec'" } else { "uv run pyinstaller main.spec" } }}
-
-# Install dependencies
-install:
-	{{ if in_nix == "" { "nix-shell --run 'uv sync'" } else { "uv sync" } }}
+    devenv shell -- uv run pyinstaller main.spec
